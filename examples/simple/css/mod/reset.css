@@ -1,0 +1,70 @@
+/*
+ * Source: https://www.joshwcomeau.com/css/custom-css-reset/
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing:  border-box;
+  margin:      0;
+  padding:     0;
+}
+
+body {
+  text-size-adjust:        100%;
+  -webkit-font-smoothing:  antialiased;
+  overflow-x:              hidden;
+  overflow-y:              scroll;
+  min-height:              100vh;
+  scroll-behavior:         smooth;
+  text-rendering:          optimizeSpeed;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display:    block;
+  max-width:  100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font:  inherit;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap:  break-word;
+  text-wrap:      balance;
+}
+
+p {
+  overflow-wrap:  break-word;
+  hyphens:        auto;
+}
+
+ul,
+ol {
+  list-style:  none;
+}
+
+a,
+a:visited,
+a:active,
+a:hover {
+  text-decoration:           underline dotted;
+  text-decoration-skip-ink:  auto;
+  color:                     inherit;
+}
+
+fieldset {
+  border:  none;
+}

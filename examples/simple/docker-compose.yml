@@ -1,0 +1,10 @@
+---
+services:
+  postcss:
+    image: louhi/dev:latest
+    init: true
+    restart: always
+    command: ["bun", "run", "postcss:watch"]
+    volumes:
+      - ./css:/app/css
+      - ./public:/app/public

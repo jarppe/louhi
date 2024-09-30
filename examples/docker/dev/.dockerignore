@@ -1,0 +1,9 @@
+# This is used when building the dev-container image. Only these files are required for
+# image build. When used the dev-containers will mount project root to container.
+
+*
+
+!/.bashrc
+!/deps.edn
+!/package.json
+!/postcss.config.js

@@ -1,0 +1,8 @@
+{:deps {bigskysoftware/htmx {:github/tag "v2.0.2"
+                             :dist/url   "https://unpkg.com/htmx.org@${VERSION}"
+                             :file/name  "resources/vend/htmx.js.gz"
+                             :file/gz?   true}
+        alpinejs/alpine     {:github/tag "v3.14.1"
+                             :dist/url   "https://cdn.jsdelivr.net/npm/alpinejs@${VERSION}/dist/cdn.min.js"
+                             :file/name  "resources/vend/alpine.js.gz"
+                             :file/gz?   true}}}

@@ -1,0 +1,88 @@
+input {
+  border:         none;
+  outline:        none;
+  color:          inherit;
+  border-radius:  100vw;
+  padding:        0.1em 1em;
+}
+
+form {
+  display:    flex;
+  flex-flow:  column nowrap;
+  gap:        1rem;
+}
+
+fieldset {
+  border-radius:    var(--border-radius);
+  border:           none;
+  position:         relative;
+  display:          flex;
+  flex-flow:        row nowrap;
+  align-items:      center;
+  justify-content:  center;
+  gap:              1rem;
+
+  & input {
+    width:  100%;
+  }
+
+  &:has(legend) {
+    border:  1px solid var(--color-fieldset-border);
+
+    input {
+      background:  none;
+      padding:     0.1em 0 0.6em 1em;
+      color:       var(--color-300);
+    }
+  }
+
+  >i {
+    position:  absolute;
+    top:       0.5em;
+    left:      0.2em;
+  }
+
+  &:has(i + input) {
+    input {
+      padding-left:  2.4em;
+    }
+  }
+
+  &:has(input + i) {
+    input {
+      padding-right:  2.4em;
+    }
+  }
+
+  & input+i {
+    left:   unset;
+    right:  0.2em;
+  }
+
+  &:has(legend) i {
+    top:  0.5em;
+  }
+
+  /* &:focus-within:not(:has([aria-invalid="true"])) {
+    border-color: var(--color-focus);
+
+    > legend {
+      color: var(--color-focus);
+    }
+  } */
+
+  &:has([aria-invalid="true"]) {
+    color:         var(--color-error);
+    border-color:  var(--color-error);
+
+    >legend {
+      color:  var(--color-error);
+    }
+  }
+
+  & legend {
+    font-size:       90%;
+    padding-inline:  2px;
+    margin-left:     1em;
+  }
+}

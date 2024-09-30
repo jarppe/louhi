@@ -1,0 +1,11 @@
+@import "mod/reset.css";
+@import "mod/vars.css";
+@import "mod/base.css";
+@import "mod/material-symbols.css";
+@import "mod/view-transition.css";
+@import "mod/button.css";
+@import "mod/form.css";
+@import "mod/notifications.css";
+
+@import "view/login.css";
+@import "view/main.css";

@@ -1,0 +1,26 @@
+:root {
+  --color-100:    hsl(0deg, 0%, 0%);
+  --color-200:    hsl(0deg, 0%, 20%);
+  --color-500:    hsl(0deg, 0%, 60%);
+  --color-800:    hsl(0deg, 0%, 95%);
+  --color-900:    hsl(0deg, 0%, 100%);
+  --color-error:  hsl(0deg, 90%, 50%);
+  --color-info:   hsl(90deg, 90%, 50%);
+
+  --disabled-opacity:  0.5;
+
+  --font-size:           1.1rem;
+  --font-family-sans:    -apple-system, system-ui, sans-serif;
+  --font-family-mono:    monaco, "Consolas", "Lucida Console", monospace;
+  --font-weight-normal:  400;
+  --font-weight-bold:    700;
+  --line-height:         calc(1em + 0.5rem);
+
+  --color-bg:    var(--color-800);
+  --color-text:  var(--color-200);
+
+  --color-disabled:         var(--color-500);
+  --color-fieldset-border:  var(--color-200);
+
+  --border-radius:  0.5em;
+}

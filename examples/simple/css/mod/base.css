@@ -1,0 +1,39 @@
+/*
+ * Base setup:
+ */
+
+html {
+  font-family:  var(--font-family-sans);
+  font-size:    var(--font-size);
+  font-weight:  var(--font-weight-normal);
+  line-height:  var(--line-height);
+}
+
+body {
+  color:             var(--color-text);
+  background-color:  var(--color-bg);
+}
+
+h1,
+h2 {
+  font-size:    2rem;
+  font-weight:  var(--font-weight-bold);
+}
+
+h3,
+h4 {
+  font-size:    1.4rem;
+  font-weight:  var(--font-weight-bold);
+}
+
+hr {
+  background-color:  var(--color-500);
+  border:            none;
+  display:           block;
+  height:            1px;
+}
+
+main {
+  view-transition-name:  slide-it;
+  padding-inline:        1rem;
+}
