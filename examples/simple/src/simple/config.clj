@@ -50,7 +50,7 @@
     {:mode      mode
      :resources {:resources-root "public"
                  :uri-prefix     "/s/"}
-     :http      {:type        :hirundo
+     :http      {:type        :http-kit
                  :host        (env "HOST" "0.0.0.0")
                  :port        (-> (env "PORT" "8080") (parse-long))
                  :dev-watcher {:enable (= mode :dev)

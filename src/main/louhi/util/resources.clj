@@ -198,74 +198,11 @@
                           (assoc acc uri (resource-resp resource-file (:cache-control opts))))
                         acc))
                     {}))
-       {:resource-root resource-root
-        :uri-prefix    uri-prefix
-        :opts          opts}))))
+       {:resources-type :files
+        :resource-root  resource-root
+        :uri-prefix     uri-prefix
+        :opts           opts}))))
 
-
-(defn get-louhi-resources [uri-prefix]
-  (let [uri-prefix (if (str/ends-with? uri-prefix "**")
-                     (subs uri-prefix 0 (- (count uri-prefix) 2))
-                     uri-prefix)
-        uri-prefix (if (str/ends-with? uri-prefix "/")
-                     uri-prefix
-                     (str uri-prefix "/"))
-        uri-prefix (if (str/starts-with? uri-prefix "/")
-                     uri-prefix
-                     (str "/" uri-prefix))]
-    (->> {"htmx.js"   "louhi/vend/htmx.js.gz"
-          "alpine.js" "louhi/vend/alpine.js.gz"}
-         (reduce (fn [acc [uri resource]]
-                   (assoc acc
-                          (str uri-prefix uri)
-                          (resource-resp (io/resource resource)
-                                         :immutable)))
-                 {}))))
-
-
-(comment
-  (resources-repo "public" "s" {:cache-control "foo"})
-  ;;=> {"/s/README.md" {:status 200,
-  ;;                    :headers {"content-type" "application/octet-stream",
-  ;;                              "content-length" 36,
-  ;;                              "etag" "\"15c66a923b756658e84189ff\"",
-  ;;                              "cache-control" "foo",
-  ;;                              "content-encoding" "gzip"},
-  ;;                    :body #<resources$eval32221$fn$reify__32223@3774e74f: #object[java.io.File 0x671516bb "public/README.md.gz"]>,
-  ;;                    :louhi/resource-info {:resource-hash [21, -58, ...
-  ;;                                          :resource-body #<resources$eval32221$fn$reify__32223@3774e74f: #object[java.io.File 0x671516bb "public/README.md.gz"]>,
-  ;;                                          :resource-encoding "gzip",
-  ;;                                          :resource-name "README.md.gz",
-  ;;                                          :resource-etag "\"15c66a923b756658e84189ff\"",
-  ;;                                          :resource-query-param "h=15c66a923b756658e84189ff",
-  ;;                                          :resource-type :file,
-  ;;                                          :resource-length 36,
-  ;;                                          :resource-subresource-integrity "sha256-FcZqkjt1ZljoQYn/uZDWQTB9cm93/DiR5de3wgIoecM="}},
-  ;;   ...
-  )
-
-(comment
-  (def louhi (get-louhi-resources "/s/"))
-  (keys louhi)
-  ;;=> ("/s/htmx.js" "/s/alpine.js")
-  (get louhi "/s/htmx.js")
-  ;;=> {:status 200,
-  ;;    :headers {"content-type" "application/javascript; charset=utf-8",
-  ;;              "content-length" "15893",
-  ;;              "etag" "\"e1746d9759ec0d43c5c28445\"",
-  ;;              "cache-control" {:cache-control :immutable},
-  ;;              "content-encoding" "gzip"},
-  ;;    :body #<resources$eval30605$fn$reify__30609@38c69f0d: #object[java.io.BufferedInputStream 0x66a1e653 "java.io.BufferedInputStream@66a1e653"]>,
-  ;;    :louhi/resource-info {:resource-hash [-31, 116, ...
-  ;;                          :resource-body #<resources$eval30605$fn$reify__30609@38c69f0d: ...
-  ;;                          :resource-encoding "gzip",
-  ;;                          :resource-name "/Users/jarppe/swd/jarppe/louhi/resources/louhi/vend/htmx.js.gz",
-  ;;                          :resource-etag "\"e1746d9759ec0d43c5c28445\"",
-  ;;                          :resource-query-param "h=e1746d9759ec0d43c5c28445",
-  ;;                          :resource-type :url,
-  ;;                          :resource-length 15893,
-  ;;                          :resource-subresource-integrity "sha256-4XRtl1nsDUPFwoRFIzOjELtf1yheusSy3Jv0TXK1qIc="}}
-  )
 
 (defn not-modified-resp [resp]
   (-> resp
@@ -324,11 +261,29 @@
   (let [resources-repo-factory (if dev?
                                  (requiring-resolve 'louhi.dev.dev-resources/dev-resources-repo)
                                  resources-repo)]
-    (merge (resources-repo-factory resources-root
-                                   resources-uri-prefix
-                                   opts)
-           (get-louhi-resources (str resources-uri-prefix
-                                     (if (str/ends-with? resources-uri-prefix "/")
-                                       ""
-                                       "/")
-                                     "louhi")))))
+    (resources-repo-factory resources-root
+                            resources-uri-prefix
+                            opts)))
+
+
+(defn louhi-resources-repo [uri-prefix]
+  (let [uri-prefix (if (str/ends-with? uri-prefix "**")
+                     (subs uri-prefix 0 (- (count uri-prefix) 2))
+                     uri-prefix)
+        uri-prefix (if (str/ends-with? uri-prefix "/")
+                     uri-prefix
+                     (str uri-prefix "/"))
+        uri-prefix (if (str/starts-with? uri-prefix "/")
+                     uri-prefix
+                     (str "/" uri-prefix))]
+    (with-meta
+      (->> {"htmx.js"   "louhi/vend/htmx.js.gz"
+            "alpine.js" "louhi/vend/alpine.js.gz"}
+           (reduce (fn [acc [uri resource]]
+                     (assoc acc
+                            (str uri-prefix uri)
+                            (resource-resp (io/resource resource)
+                                           :immutable)))
+                   {}))
+      {:resources-type :louhi
+       :uri-prefix     uri-prefix})))

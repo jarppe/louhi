@@ -7,6 +7,7 @@
              [reitit.coercion.malli :as mc]
              [reitit.ring.coercion :as rrc]
              [reitit.ring.middleware.muuntaja :as rm]
+             [reitit.ring.middleware.exception :as exception]
              [louhi.htmx]))
 
 
@@ -19,14 +20,14 @@
    (let [{:keys [middleware not-found]} handler-config]
      (-> (ring/router routes {:data {:muuntaja   m/instance
                                      :coercion   mc/coercion
-                                     :middleware (concat [params/wrap-params
-                                                          cookies/wrap-cookies
-                                                          rm/format-middleware
-                                                          rrc/coerce-exceptions-middleware
-                                                          rrc/coerce-request-middleware
-                                                          rrc/coerce-response-middleware
-                                                          louhi.htmx/wrap-htmx]
-                                                         middleware)}})
+                                     :middleware (into [params/wrap-params
+                                                        cookies/wrap-cookies
+                                                        rm/format-middleware
+                                                        exception/exception-middleware
+                                                        rrc/coerce-request-middleware
+                                                        rrc/coerce-response-middleware
+                                                        louhi.htmx/wrap-htmx]
+                                                       middleware)}})
          (ring/ring-handler (if (fn? not-found)
                               not-found
                               (constantly (or not-found

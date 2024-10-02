@@ -1,25 +1,20 @@
 (ns simple.system
-  (:require [clojure.java.io :as io]
-            [integrant.core :as ig]
+  (:require [integrant.core :as ig]
             [simple.config :as config]
             [simple.resources]
-            [simple.app.user-store])
-  (:import (java.util.concurrent Executors)))
+            [simple.app.user-store]))
 
 
 (set! *warn-on-reflection* true)
 
 
-(defonce _init-loom
-  (doto (Executors/newVirtualThreadPerTaskExecutor)
-    (set-agent-send-executor!)
-    (set-agent-send-off-executor!)))
-
-
-(defonce _init-jul
-  (with-open [in (-> (io/resource "logging.properties")
-                     (io/input-stream))]
-    (.readConfiguration (java.util.logging.LogManager/getLogManager) in)))
+#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(defonce _init
+  (do (org.slf4j.bridge.SLF4JBridgeHandler/removeHandlersForRootLogger)
+      (org.slf4j.bridge.SLF4JBridgeHandler/install)
+      (doto (java.util.concurrent.Executors/newVirtualThreadPerTaskExecutor)
+        (set-agent-send-executor!)
+        (set-agent-send-off-executor!))))
 
 
 (defmethod ig/init-key :simple/env [_ env]

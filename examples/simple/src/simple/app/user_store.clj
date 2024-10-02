@@ -4,15 +4,15 @@
 
 (defmethod ig/init-key :simple/user-store [_ _]
   (->> [{:id       1
-         :username "hunter by the name"
-         :email    "tiger"
-         :password "hunter2"
-         :role     :user}
-        {:id       2
          :username "Foo"
          :email    "foo"
          :password "bar"
-         :role     :admin}]
+         :role     :admin}
+        {:id       2
+         :username "hunter by the name"
+         :email    "tiger"
+         :password "hunter2"
+         :role     :user}]
        (reduce (fn [acc user-info]
                  (assoc acc (:email user-info) user-info))
                {})))

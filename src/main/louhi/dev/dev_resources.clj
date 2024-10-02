@@ -24,9 +24,10 @@
                                 (->file resource-root (str uri ".gz")))]
           (when resource-file
             (resources/resource-resp resource-file (:cache-control opts))))))
-    {:resource-root resource-root
-     :uri-prefix    uri-prefix
-     :opts          opts}))
+    {:resources-type :dev
+     :resource-root  resource-root
+     :uri-prefix     uri-prefix
+     :opts           opts}))
 
 
 (declare new-dev-resources-repo)
@@ -56,7 +57,11 @@
                                (some? (get-resource uri))))
 
   clojure.lang.IMeta
-  (meta [_this] (meta get-resource)))
+  (meta [_this] (meta get-resource))
+
+  java.lang.Object
+  (toString [_this] "louhi.dev.dev-resources.DevResourcesRepo")
+  (equals [this other] (identical? this other)))
 
 
 (defn new-dev-resources-repo [overlay-repo get-resource]

@@ -35,13 +35,22 @@
                           resp)
                         (catch Exception e
                           (let [end (System/currentTimeMillis)]
-                            (log/error e
-                                       (-> req :request-method (name) (str/upper-case))
-                                       (-> req :uri)
-                                       "=>"
-                                       (-> e (.getClass) (.getName))
-                                       (-> e (.getMessage) (or ""))
-                                       ":"
-                                       (- end start)
-                                       "ms"))
+                            (if-let [resp (let [data (ex-data e)]
+                                            (when (-> data :type (= :ring.util.http-response/response))
+                                              (-> data :response)))]
+                              (log/warn (-> req :request-method (name) (str/upper-case))
+                                        (-> req :uri)
+                                        "=>"
+                                        route-name
+                                        (-> resp :status)
+                                        (str ": " (- end start) "ms"))
+                              (log/error e
+                                         (-> req :request-method (name) (str/upper-case))
+                                         (-> req :uri)
+                                         "=>"
+                                         (-> e (.getClass) (.getName))
+                                         (-> e (.getMessage) (or ""))
+                                         ":"
+                                         (- end start)
+                                         "ms")))
                           (throw e))))))))})

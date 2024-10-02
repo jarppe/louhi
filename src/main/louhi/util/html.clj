@@ -9,8 +9,7 @@
    [:script {:src       script-name
              :defer     deref
              :integrity (when secure
-                          (-> resources-repo
-                              (get script-name)
+                          (-> (resources-repo script-name)
                               :louhi/resource-info
                               :resource-subresource-integrity))}]))
 
@@ -18,12 +17,11 @@
 (defn style
   ([resources-repo style-name] (style resources-repo style-name {:secure true}))
   ([resources-repo style-name {:keys [secure]}]
-   [:link {:href      style-name
+   [:link {:href      (str style-name "?")
            :type      "text/css"
            :rel       "stylesheet"
            :integrity (when secure
-                        (-> resources-repo
-                            (get style-name)
+                        (-> (resources-repo style-name)
                             :louhi/resource-info
                             :resource-subresource-integrity))}]))
 

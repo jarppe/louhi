@@ -4,7 +4,8 @@
 
 
 (defmethod ig/init-key :simple/resources-repo [_ {:keys [dev?]}]
-  (resources/make-resources-repo "public"
-                                 "/s/"
-                                 {:cache-control :immutable}
-                                 dev?))
+  (merge (resources/make-resources-repo "public"
+                                        "/s/"
+                                        {:cache-control :immutable}
+                                        dev?)
+         (resources/louhi-resources-repo "/s/louhi")))

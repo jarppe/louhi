@@ -1,6 +1,7 @@
 (ns simple.app.login
   (:require [ring.util.http-response :as resp]
-            [simple.app.user-store :as user-store]))
+            [simple.app.user-store :as user-store]
+            [simple.app.html :as html]))
 
 
 ;;
@@ -44,10 +45,11 @@
        [:span "Login"]]]]]))
 
 
-(defn session-missing-hander [_env]
+(defn session-missing-hander [env]
   (fn [_req]
-    (-> (resp/unauthorized "Login first!")
-        (update :headers assoc "content-type" "text/plain; charset=utf-8"))))
+    (-> (html/html-page env (login-form))
+        (resp/ok)
+        (update :headers assoc "cache-control" "no-cache"))))
 
 
 ;;

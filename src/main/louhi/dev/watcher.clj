@@ -57,8 +57,8 @@
                               (assoc :headers headers))]
     (fn [req]
       (if (-> req :headers (get "if-none-match") (= etag))
-        ok-resp
-        not-modified-resp))))
+        not-modified-resp
+        ok-resp))))
 
 
 (defn- make-dev-watch-handler [watch-service]
