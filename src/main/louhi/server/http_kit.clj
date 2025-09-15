@@ -1,26 +1,30 @@
 (ns louhi.server.http-kit
-  (:require [org.httpkit.server :as http-kit]
-            [louhi.server.impl :as server])
-  (:import (java.util.concurrent Executors)))
+  (:require [clojure.set :as set]
+            [org.httpkit.server :as http-kit]
+            [louhi.server.core :as core]))
 
 
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(set! *warn-on-reflection* true)
+
+
 (defn make-server [handler config]
-  (let [http-kit (http-kit/run-server handler
-                                      {:ip                   (-> config :host)
-                                       :port                 (-> config :port)
-                                       :legacy-return-value? false
-                                       :worker-pool          (Executors/newVirtualThreadPerTaskExecutor)})]
-    (server/->Server (fn [] (http-kit/server-port http-kit))
-                     (fn [] (http-kit/server-stop! http-kit)))))
+  (let [server (http-kit/run-server handler (-> (merge {:host "127.0.0.1"
+                                                        :port 0}
+                                                       config)
+                                                (set/rename-keys {:host :ip})
+                                                (assoc :legacy-return-value? false)
+                                                (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
+    (core/server {:impl   ::kttp-kit
+                  :close  (fn [] (http-kit/server-stop! server)) 
+                  :port   (fn [] (http-kit/server-port server))
+                  :status (fn [] (http-kit/server-status server))})))
 
 
 (comment
-  (def server (make-server (constantly {:status 200
-                                        :body   "Hey ho!"})
-                           {:host "127.0.0.1"
-                            :port 0}))
-  (server/server-port server)
-  (server/close-server server)
+  (with-open [server (make-server (constantly {:status 200
+                                               :body   "Hey ho!"})
+                                  {:host "127.0.0.1"
+                                   :port 0})]
+    (pr-str server))
   ;
   )

@@ -2,7 +2,7 @@
  #meta-merge
   [{:tests [{:id         :unit
              :test-paths ["src/test"]
-             :skip-meta  [:itest]}
-            {:id         :itest
+             :skip-meta  [:slow]}
+            {:id         :slow
              :test-paths ["src/test"]
-             :focus-meta [:itest]}]}]
+             :focus-meta [:slow]}]}]

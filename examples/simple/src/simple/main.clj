@@ -1,8 +1,11 @@
 (ns simple.main
-  (:require [simple.system :as system])
+  (:require [louhi.util.unified-logging]
+            [simple.server :as server])
   (:gen-class))
 
 
 (defn -main [& _args]
   (println "main: starting...")
-  (system/start-system))
+  (server/start-server)
+  (println "main: server ready")
+  (deref (promise)))

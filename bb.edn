@@ -1,40 +1,44 @@
 {:paths ["bb"]
- :tasks {dev:init      {:doc      "Initialize dev setup"
-                        :requires ([init :as i])
-                        :task     (i/init)}
+ :tasks {:requires    ([clojure.string :as str]
+                       [babashka.process :as p])
 
-         dev:up        {:doc      "Start dev env"
-                        :requires ([babashka.process :as p])
-                        :task     (apply p/shell {:dir "./examples/simple"} "docker compose up" *command-line-args*)}
+         :init        (def aliases [:jetty :httpkit :hirundo :clj-helidon
+                                    :html :jwt :json
+                                    :watch-service
+                                    :logging
+                                    :dev :test])
 
-         dev:down      {:doc      "Stop dev env"
-                        :requires ([babashka.process :as p])
-                        :task     (p/shell {:dir "./examples/simple"} "docker compose down --remove-orphans")}
+         dev:outdated {:doc      "Check for outdated Clojure deps"
+                       :requires ([babashka.process :as p])
+                       :task     (clojure "-Sdeps" "{:deps {olical/depot {:mvn/version \"RELEASE\"}}}"
+                                          "-M" "-m" "depot.outdated.main"
+                                          "--aliases" (->> aliases (map name) (str/join ",")))}
 
-         dev:logs      {:doc      "Show env logs"
-                        :requires ([babashka.process :as p])
-                        :task     (p/shell {:dir "./examples/simple"} "docker compose logs -f")}
+         dev:sources  {:doc  "Download dependency sources"
+                       :task (do (p/shell "clj -X:deps mvn-pom :aliases" (pr-str aliases))
+                                 (p/shell "mvn dependency:sources dependency:resolve -Dclassifier=javadoc")
+                                 (p/shell "rm pom.xml"))}
+         
+         release:current {:doc      "Print current release info"
+                          :requires ([release])
+                          :task     (let [[tag sha] (release/current)]
+                                      (println (format "io.github.jarppe/louhi {:git/tag \"%s\"" tag))
+                                      (println (format "                        :git/sha \"%s\"}" sha)))}
+         
+         release:new     {:doc      "Make new release"
+                          :requires ([release])
+                          :task     (let [[tag sha] (release/new-release *command-line-args*)]
+                                      (println (format ":git/tag \"%s\"" tag))
+                                      (println (format ":git/sha \"%s\"" sha)))}
 
-         test:unit     {:doc  "Run unit tests"
-                        :task (apply clojure "-M:dev:test:kaocha" (if (seq *command-line-args*)
-                                                                    *command-line-args*
-                                                                    ["unit"]))}
+         test:unit    {:doc  "Run unit tests"
+                       :task (apply clojure (apply str "-M:dev:test:kaocha" aliases)
+                                    (if (seq *command-line-args*)
+                                      *command-line-args*
+                                      ["unit"]))}
 
-         test:itest    {:doc  "Run integration tests"
-                        :task (apply clojure "-M:dev:test:kaocha" (if (seq *command-line-args*)
-                                                                    *command-line-args*
-                                                                    ["itest"]))}
-
-         test:watch    {:doc  "Run unit tests in watch mode"
-                        :task (clojure "-M:test:kaocha"
-                                       (or (first (seq *command-line-args*)) "unit")
-                                       "--fail-fast"
-                                       "--watch")}
-
-         outdated:clj  {:doc      "Check for outdated Clojure deps"
-                        :requires ([babashka.process :as p])
-                        :task     (clojure "-M:outdated")}
-
-         outdated:vend {:doc      "Check for outdated vendor artifacts"
-                        :requires ([vend-deps :as v])
-                        :task     (v/outdated)}}}
+         test:watch   {:doc  "Run unit tests in watch mode"
+                       :task (clojure (apply str "-M:dev:test:kaocha" aliases)
+                                      (or (first (seq *command-line-args*)) "unit")
+                                      "--fail-fast"
+                                      "--watch")}}}

@@ -1,24 +1,36 @@
 (ns louhi.server.hirundo
   (:require [s-exp.hirundo :as hirundo]
-            [louhi.server.impl :as server]))
+            [louhi.server.core :as core])
+  (:import (io.helidon.webserver WebServer)))
 
 
-#_{:clj-kondo/ignore [:clojure-lsp/unused-public-var]}
+(set! *warn-on-reflection* true)
+
+
 (defn make-server [handler config]
-  (let [server (hirundo/start! handler
-                               {:host (-> config :host)
-                                :port (-> config :port)})]
-    (server/->Server (fn [] (-> config :port)) ;; FIXME:
-                     (fn [] (hirundo/stop! server)))))
+  (let [server (hirundo/start! handler (-> (merge {:host "127.0.0.1"
+                                                   :port 0}
+                                                  config)
+                                           (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
+    (core/server {:impl   ::hirundo 
+                  :close  (fn [] (hirundo/stop! server)) 
+                  :port   (fn [] (-> server (WebServer/.port)))
+                  :status (fn [] (-> server (WebServer/.isRunning) (if "running" "stopped")))})))
 
+
+(defn close-server [^louhi.server.core.Server server]
+  (when server
+    (.close server)))
 
 
 (comment
-  (def server (make-server (constantly {:status 200
-                                        :body   "Hey ho!"})
-                           {:host "127.0.0.1"
-                            :port 8888}))
-  (server/server-port server)
-  (server/close-server server)
+  (with-open [server (make-server (constantly {:status 200
+                                               :body   "Hey ho!"})
+                                  nil)]
+    (pr-str server))
   ;
+  (-> (merge {:host "127.0.0.1"
+              :port 0}
+             {:port 8080})
+      (update :port Long/valueOf))
   )

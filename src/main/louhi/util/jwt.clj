@@ -1,13 +1,20 @@
 (ns louhi.util.jwt
+  "Louhi JWT support.
+   Requires dependency to Buddy sign:
+     buddy/buddy-sign {:mvn/version \"3.5.351\"}"
   (:require [buddy.sign.jwt :as jwt]
-            [ring.util.http-response :as resp]))
+            [louhi.http.resp :as resp])
+  (:import (java.time Instant)))
+
+
+(set! *warn-on-reflection* true)
 
 
 (def ^:private buddy-opts {:alg :hs512})
 
 
 (defn make-jwt [claims secret max-age-sec]
-  (let [now (java.time.Instant/now)
+  (let [now (Instant/now)
         exp (.plusSeconds now (int max-age-sec))]
     (jwt/sign (assoc claims
                      :iat now
@@ -15,24 +22,26 @@
               secret
               buddy-opts)))
 
+
 (defn open-jwt [jwt secret]
   (try
     (let [claims (jwt/unsign jwt secret buddy-opts)]
       (assoc claims :ttl (- (-> claims :exp)
-                            (-> (java.time.Instant/now)
+                            (-> (Instant/now)
                                 (.toEpochMilli)
-                                (/ 1000)
-                                (long)))))
+                                (quot 1000)))))
     (catch clojure.lang.ExceptionInfo e
       (let [data  (ex-data e)
             cause (when (-> data :type (= :validation))
                     (-> data :cause))]
         (case cause
           :exp nil
-          :signature (resp/bad-request!)
+          :signature (throw (resp/error! {:ex-message "request contained JWT token with bad signature"
+                                          :status     400}))
           ; All others are 500:
-          (resp/internal-server-error!))))))
-
+          (resp/error! {:ex-message "unexpected JWT error"
+                        :status     500
+                        :cause      e}))))))
 
 
 (comment
@@ -44,7 +53,7 @@
   ;;     :ttl     2}
 
   (let [jwt (make-jwt {:foo/bar 42} "tiger" 2)]
-    (Thread/sleep 1000)
+    (Thread/sleep 1100)
     (open-jwt jwt "tiger"))
   ;; => {:foo/bar 42
   ;;     :iat     1714456105
@@ -58,12 +67,6 @@
 
   (let [jwt (make-jwt {:foo/bar 42} "tiger" 2)]
     (open-jwt jwt "donkey"))
-  ;; => Execution error (ExceptionInfo) at ring.util.http-response/throw! (http_response.clj:11).
-  ;;    HTTP 400
-
-  (open-jwt "xxx" "tiger")
-  ;; => Execution error (ExceptionInfo) at ring.util.http-response/throw! (http_response.clj:11).
-  ;;    HTTP 400
-
-  ;
+  ; Execution error (ExceptionInfo) at louhi.util.resp/error! (resp.clj:10).
+  ; request contained JWT token with bad signature 
   )

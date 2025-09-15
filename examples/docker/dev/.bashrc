@@ -1,9 +1,0 @@
-alias l="ls -F"
-alias ll="ls -Fl"
-alias lll="ls -Fla"
-alias m=more
-
-export BUN_INSTALL="$HOME/.bun"
-export PATH=$BUN_INSTALL/bin:$PATH
-
-export PS1="\e[2m[\e[0;31m\u\e[0m\e[2m] \e[0;32m\w\e[0m > "
