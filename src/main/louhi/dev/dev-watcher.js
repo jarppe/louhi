@@ -1,21 +1,20 @@
 //
 // Detect CSS changes and server resets.
 //
-// On CSS changes reloads the CSS files. On server resets waits for the 
+// On CSS changes reloads the CSS files. On server resets waits for the
 // server to become available and then reloads the page.
 //
 
 
-// These are filled by the watch-service:
+// This is filled by the watch-service:
 
-const eventType = "$EVENT_TYPE$"
 const eventUrl  = "$EVENT_URL$"
 
 
 // Open event source and set the event listeners:
 
 const openSource = (listeners) => {
-  const source = (eventType === "sse") ? new EventSource(eventUrl) : new WebSocket(eventUrl)
+  const source = new EventSource(eventUrl);
   for (const [event, listener] of Object.entries(listeners)) {
     if (listener) source.addEventListener(event, (e) => listener(source, e))
   }
@@ -29,9 +28,9 @@ const openSource = (listeners) => {
 const reconnect = () => {
   openSource({
     open: () => window.location.reload(),
-    error: (source) => { 
+    error: (source) => {
       source.close(); // Close source immediatelly to prevent automatic retry done on SSE EventSources.
-      setTimeout(reconnect, 500) 
+      setTimeout(reconnect, 500)
     }
   })
 }
@@ -45,12 +44,12 @@ const reportErrorAndReconnect = (source) => {
   const message = document.createElement("div")
   message.appendChild(document.createTextNode("Reconnecting..."))
   message.style = `
-    position:         absolute; 
-    left:             0; 
-    right:            0; 
-    bottom:           0; 
-    background-color: red; 
-    color:            white; 
+    position:         absolute;
+    left:             0;
+    right:            0;
+    bottom:           0;
+    background-color: red;
+    color:            white;
     font-size:        2rem;
     padding:          0.5em;
   `
@@ -60,7 +59,7 @@ const reportErrorAndReconnect = (source) => {
 
 // Process incoming message:
 
-const handleFileEvent = ({ file }) => {
+const handleFileEvent = (file) => {
   if (file.endsWith(".css")) {
     console.log("dev-watcher: css reset", file)
     document.querySelectorAll("link[rel=stylesheet]").forEach((link) => {
@@ -72,24 +71,12 @@ const handleFileEvent = ({ file }) => {
   }
 }
 
-const handleMessage = (_, message) => {
-  const event = JSON.parse(message.data)
-  switch (event.type) {
-    case "file":
-      handleFileEvent(event)
-      break
-    case "keep-alive":
-      break
-    default:
-      console.log("dev-watcher: unknown message:", message)
-  }
-}
-
 // Start the watcher:
 
 console.log("dev-watcher: starting watch...")
 openSource({
-  message: handleMessage,
+  ping:  () => {},
+  file:  (_, e) => handleFileEvent(e.data),
   close: reportErrorAndReconnect,
   error: reportErrorAndReconnect,
 })

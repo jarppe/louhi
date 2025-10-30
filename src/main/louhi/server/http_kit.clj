@@ -15,7 +15,10 @@
                                                 (assoc :legacy-return-value? false)
                                                 (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
     (core/server {:impl   ::kttp-kit
-                  :close  (fn [] (http-kit/server-stop! server)) 
+                  :close  (fn []
+                            (when-let [on-close (:on-close config)]
+                              (on-close))
+                            (http-kit/server-stop! server))
                   :port   (fn [] (http-kit/server-port server))
                   :status (fn [] (http-kit/server-status server))})))
 

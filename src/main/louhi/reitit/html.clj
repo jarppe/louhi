@@ -1,6 +1,7 @@
 (ns louhi.reitit.html
   (:require [muuntaja.format.core]
             [dev.onionpancakes.chassis.core :as h]
+            [louhi.http.security-headers :as su]
             [louhi.html.util :as hu]))
 
 
@@ -53,11 +54,13 @@
                   ([handler {:keys [to-full-page]}]
                    (when-not to-full-page
                      (throw (ex-info "wrap-html-page middleware requires option to-full-page" {})))
-                   (let [merge-headers (fn [headers]
-                                         (merge hu/html-headers headers))]
+                   (let [partial-page-headers hu/html-headers
+                         full-page-headers    (merge hu/html-headers su/security-headers)]
                      (fn [req]
                        (when-let [resp (handler req)]
-                         (-> (if (hu/partial-page-request? req)
-                               resp
-                               (update resp :body to-full-page))
-                             (update :headers merge-headers)))))))))})
+                         (if (hu/partial-page-request? req)
+                           (-> resp
+                               (update :headers merge partial-page-headers))
+                           (-> resp
+                               (update :headers merge full-page-headers)
+                               (update :body to-full-page))))))))))})

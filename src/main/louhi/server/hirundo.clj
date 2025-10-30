@@ -9,11 +9,14 @@
 
 (defn make-server [handler config]
   (let [server (hirundo/start! handler (-> (merge {:host "127.0.0.1"
-                                                   :port 0}
-                                                  config)
-                                           (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
-    (core/server {:impl   ::hirundo 
-                  :close  (fn [] (hirundo/stop! server)) 
+                                                     :port 0}
+                                                    config)
+                                             (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
+    (core/server {:impl   ::hirundo
+                  :close  (fn []
+                            (when-let [on-close (:on-close config)]
+                              (on-close))
+                            (hirundo/stop! server))
                   :port   (fn [] (-> server (WebServer/.port)))
                   :status (fn [] (-> server (WebServer/.isRunning) (if "running" "stopped")))})))
 

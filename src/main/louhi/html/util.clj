@@ -6,8 +6,8 @@
 (def content-type-html "text/html; charset=utf-8")
 
 
-(def html-headers (merge {"content-type" content-type-html
-                          "vary"         "cookie, accept-language, hx-request, x-alpine-request"}))
+(def html-headers {"content-type" content-type-html
+                   "vary"         "cookie, accept-language, hx-request, x-alpine-request"})
 
 
 (defn script

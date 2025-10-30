@@ -1,22 +1,14 @@
 (ns louhi.dev.watch-service
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [jsonista.core :as json]
-            [ring.websocket :as ws])
+            [ring.core.protocols :as p])
   (:import (java.nio.file Path
                           FileSystems
                           WatchEvent
                           WatchEvent$Kind
                           StandardWatchEventKinds)
            (java.nio.charset StandardCharsets)
-           (java.util.concurrent TimeUnit)
-           (java.util.concurrent.atomic AtomicLong)))
-
-
-;;
-;; NOTE:
-;;   This namespace has partial support for SSE, but it's not functional yet
-;;
+           (java.util.concurrent TimeUnit)))
 
 
 (set! *warn-on-reflection* true)
@@ -29,14 +21,10 @@
 
 
 ;;
-;; Create new `java.nio.file.WatchService` to monitor file-system changes
-;; in given directory and returns a function to close the watcher instance.
+;; Create new `java.nio.file.WatchService` to monitor file-system changes in
+;; given directory. Calls `on-watch-event` when a change in fs is detected.
+;; Returns a closeable to close the watcher instance and release it's resources.
 ;;
-
-
-(def ^:private keep-alive-message
-  {:type  :keep-alive
-   :event "keep-alive"})
 
 
 (defn- new-watcher [{:keys [root dir uri]} on-watch-event]
@@ -48,22 +36,21 @@
                        (fn []
                          (try
                            (while true
-                             (if-let [k (.poll watch 10 TimeUnit/SECONDS)]
+                             (println "poll events:" (pr-str dir))
+                             (when-let [k (.poll watch 10 TimeUnit/SECONDS)]
+                               (println "got events")
                                (try
                                  (doseq [^WatchEvent event (.pollEvents k)]
-                                   (on-watch-event {:type  :file
-                                                    :event (-> (.kind event)
-                                                               (.name)
-                                                               (subs 6) ; strip leading "ENTRY_"
-                                                               (str/lower-case))
-                                                    :file  (->> (.resolve dir ^Path (.context event))
+                                   (on-watch-event {:event :file
+                                                    :data  (->> (.resolve dir ^Path (.context event))
                                                                 (.relativize root)
                                                                 (str uri))}))
                                  (finally
-                                   (.reset k)))
-                               (on-watch-event keep-alive-message)))
-                           (catch java.nio.file.ClosedWatchServiceException _)
-                           (catch InterruptedException _)
+                                   (.reset k)))))
+                           (catch java.nio.file.ClosedWatchServiceException _
+                             (println "watch closed"))
+                           (catch InterruptedException _
+                             (println "watch interrupted"))
                            (catch Exception e
                              (.println System/err (format "error: unexpected error on dev file watcher: %s: %s"
                                                           (-> e (.getClass) (.getName))
@@ -71,9 +58,13 @@
                              (.printStackTrace e System/err)
                              (throw e)))))]
     (.register dir watch watch-kinds)
-    (fn []
-      (.interrupt thread)
-      (.close watch))))
+    (reify java.io.Closeable
+      (close [_]
+        (try
+          (.interrupt thread)
+          (.close watch)
+          (catch Throwable e
+            (println "uh no" e)))))))
 
 
 ;;
@@ -86,51 +77,43 @@
 ;;
 
 
-(defn make-watch-service [watch-locations]
-  (let [listeners      (atom {})
-        next-key       (AtomicLong.)
+(defrecord WatchService [fs-watchers listeners]
+  java.io.Closeable
+  (close [_]
+    (doseq [watcher fs-watchers]
+      (java.io.Closeable/.close watcher))))
+
+
+(defn make-watch-service ^java.io.Closeable [watch-locations]
+  (let [listeners      (atom #{})
         on-watch-event (fn [event]
-                         (doseq [listener (vals @listeners)]
-                           (try
-                             (listener event)
-                             (catch Exception e
-                               (.println System/err (format "error: unexpected error when delivering event: %s: %s"
-                                                            (-> e (.getClass) (.getName))
-                                                            (-> e (.getMessage))))
-                               (.printStackTrace e System/err)))))
-        watchers       (mapv (fn [watch-location]
+                         (println "watch-service:" (pr-str event))
+                         (doseq [listener @listeners]
+                           (println "watch-service: send...")
+                           (listener event))
+                         (println "watch-service: done"))
+        fs-watchers    (mapv (fn [watch-location]
                                (new-watcher watch-location on-watch-event))
                              watch-locations)]
-    {:listeners listeners
-     :next-key  next-key
-     :watchers  watchers}))
+    (->WatchService fs-watchers listeners)))
 
 
-(defn close-watch-service [watch-service]
-  (let [{:keys [watchers listeners]} watch-service]
-    (doseq [watcher watchers]
-      (watcher))
-    (doseq [listener (-> listeners (deref) (vals))]
-      (listener))))
+(defn close-watch-service [^java.io.Closeable watch-service]
+  (when watch-service
+    (.close watch-service)))
 
 
-;;
-;; Private API for watch-service:
-;;
+(defn- get-listener [watch-service]
+  (let [events   (java.util.concurrent.LinkedBlockingQueue.)
+        listener (fn
+                   ([] (.take events))
+                   ([event] (.add events event)))]
+    (swap! (:listeners watch-service) conj listener)
+    listener))
 
 
-(defn- next-listener-key [watch-service]
-  (let [^AtomicLong next-key (:next-key watch-service)]
-    (str (.getAndIncrement next-key))))
-
-
-(defn- add-listener [watch-service listener-key on-event]
-  (swap! (:listeners watch-service) assoc listener-key on-event)
-  nil)
-
-
-(defn- remove-listener [watch-service listener-key]
-  (swap! (:listeners watch-service) dissoc listener-key)
+(defn- remove-listener [watch-service listener]
+  (swap! (:listeners watch-service) disj listener)
   nil)
 
 
@@ -141,9 +124,43 @@
 ;;
 
 
-(defn- make-get-js-handler [type uri]
-  (let [replacements {"EVENT_TYPE" (name type)
-                      "EVENT_URL"  uri}
+;;
+;; Handler for reposinding to SSE request:
+;;
+
+
+(defn- make-events-handler [watch-service]
+  (fn [_req]
+    (println "events-handler:"
+             "\ncontent-type:" (-> _req :headers (get "accept") (pr-str)))
+    {:status  200
+     :headers {"content-type" "text/event-stream"}
+     :body    (reify p/StreamableResponseBody
+                (write-body-to-stream [_body _response output-stream]
+                  (let [out    (io/writer output-stream)
+                        listen (get-listener watch-service)]
+                    (try
+                      (doseq [{:keys [event data]} (repeatedly listen)]
+                        (doto out
+                          (.write "event: ")
+                          (.write (name event))
+                          (.write "\r\n")
+                          (.write "data: ")
+                          (.write (str (or data "")))
+                          (.write "\r\n")
+                          (.write "\r\n")
+                          (.flush)))
+                      (finally
+                        (remove-listener watch-service listen))))))}))
+
+
+;;
+;; Handler for dev-watcher JavaScript file:
+;;
+
+
+(defn- make-dev-watcher-js-handler [uri]
+  (let [replacements {"EVENT_URL" uri}
         body         (let [baos (java.io.ByteArrayOutputStream.)]
                        (with-open [in  (-> (io/resource "louhi/dev/dev-watcher.js")
                                            (io/input-stream))
@@ -162,67 +179,31 @@
                                 "etag"             etag}
                       :body    body}]
     (fn [req]
+      (println "dev-watcher-js-handler:"
+               "\ncontent-type:" (-> req :headers (get "accept") (pr-str))
+               "\nif-none-match:" (-> req :headers (get "if-none-match") (pr-str)) "=>" (-> req :headers (get "if-none-match") (= etag)))
       (if (-> req :headers (get "if-none-match") (= etag))
-        (-> resp (assoc :status 304) (dissoc :body))
+        (-> resp
+            (assoc :status 304)
+            (dissoc :body))
         resp))))
 
 
-(defn- make-socket-listener [socket]
-  (fn
-    ([]
-     (try
-       (ws/close socket)
-       (catch Exception _)))
-    ([events]
-     (try
-       (ws/send socket (json/write-value-as-string events))
-       (catch Exception _
-         (try
-           (ws/close socket)
-           (catch Exception _)))))))
-
-
-;; (require [ring.sse :as :sse])
-;; (defn- make-sse-listener [sse]
-;;   (fn
-;;     ([]
-;;      (try
-;;        (sse/close sse)
-;;        (catch Exception _)))
-;;     ([events]
-;;      (try
-;;        (sse/send sse {:data (json/write-value-as-string events)})
-;;        (catch Exception _
-;;          (try
-;;            (sse/close sse)
-;;            (catch Exception _)))))))
-
-
-(defn events-resp [watch-service]
-  (let [listener-key (next-listener-key watch-service)]
-    {:ring.websocket/listener {:on-open  (fn [socket] (add-listener watch-service listener-key (make-socket-listener socket)))
-                               :on-close (fn [_ _ _]  (remove-listener watch-service listener-key))
-                               :on-error (fn [_ _]    (remove-listener watch-service listener-key))}
-     ;; :ring.sse/listener       {:on-open  (fn [sse]    (add-listener watch-service listener-key (make-sse-listener sse)))}
-     }))
-
-
-(defn- make-dev-watch-handler [watch-service type uri]
-  (let [get-js-handler (make-get-js-handler type uri)]
+(defn- make-dev-watch-handler [watch-service uri]
+  (let [events-handler (make-events-handler watch-service)
+        js-handler     (make-dev-watcher-js-handler uri)]
     (fn [req]
       (when (-> req :uri (= uri))
-        ;; or sse/sse-request?
-        (if (ws/upgrade-request? req)
-          (events-resp watch-service)
-          (get-js-handler req))))))
+        (if (-> req :headers (get "accept") (= "text/event-stream"))
+          (events-handler req)
+          (js-handler req))))))
 
 
 (defn wrap-dev-watcher
   ([handler watch-service] (wrap-dev-watcher handler watch-service nil))
-  ([handler watch-service {:keys [type uri]
-                           :or   {uri  "/dev/watch"
-                                  type :ws}}]
+  ([handler watch-service {:keys [uri]
+                           :or   {uri "/dev/watch"}}]
    (if watch-service
-     (some-fn (make-dev-watch-handler watch-service type uri)
+     (some-fn (make-dev-watch-handler watch-service uri)
               handler)
      handler)))

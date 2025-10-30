@@ -15,13 +15,13 @@
                                                             :host                 "127.0.0.1"
                                                             :port                 0}
                                                            config)
-                                                    (update :port (fn [port] (if (string? port) (parse-long port) port)))))
-        on-close (:on-close config)]
+                                                    (update :port (fn [port] (if (string? port) (parse-long port) port)))))]
     (core/server {:impl  ::jetty
                   :close (fn []
-                           (when on-close (on-close))
+                           (when-let [on-close (:on-close config)]
+                             (on-close))
                            (jetty/stop-server server))
-                  :port  (fn [] 
+                  :port  (fn []
                            (-> server (.getConnectors) (aget 0) (ServerConnector/.getLocalPort)))})))
 
 
