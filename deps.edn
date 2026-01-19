@@ -1,56 +1,58 @@
 {:paths   ["src/main"]
- :deps    {}
- :aliases {;;
-           ;; Optional features:
+ :deps    {;;
+           ;; Component integration:
            ;;
 
-           ;; HTTP servers:
-           :jetty           {:extra-deps {info.sunng/ring-jetty9-adapter {:mvn/version "0.37.6"}}}
-           :httpkit         {:extra-deps {http-kit/http-kit {:mvn/version "2.8.1"}}}
-           :hirundo         {:extra-deps {com.s-exp/hirundo {:mvn/version "0.1.43"}}}
-           :clj-helidon     {:extra-deps {io.github.jarppe/clj-helidon {:git/tag "0.0.3"
-                                                                        :git/sha "7fd68c4"}}}
-
-           ;; HTML support:
-           :html            {:extra-deps {dev.onionpancakes/chassis {:mvn/version "1.0.365"}}}
-
-           ;; JWT support:
-           :jwt             {:extra-deps {buddy/buddy-sign {:mvn/version "3.6.1-359"}}}
-
-           ;; JSON support:
-           :json            {:extra-deps {metosin/jsonista {:mvn/version "0.3.13"}}}
-
-           ;; Reitit with Malli:
-           :reitit          {:extra-deps {metosin/malli             {:mvn/version "0.19.1"}
-                                          metosin/reitit-core       {:mvn/version "0.9.1"}
-                                          metosin/reitit-middleware {:mvn/version "0.9.1"}
-                                          metosin/reitit-ring       {:mvn/version "0.9.1"}
-                                          metosin/reitit-malli      {:mvn/version "0.9.1"}
-                                          metosin/muuntaja-form     {:mvn/version "0.6.11"}}}
-
-           ;; Dev watch-service:
-           :watch-service   {:extra-deps {ring/ring-core   {:mvn/version "1.14.2"}
-                                          metosin/jsonista {:mvn/version "0.3.13"}}}
-
-           ;; Log bridging:
-           :logging         {:extra-deps {org.clojure/tools.logging  {:mvn/version "1.3.0"}
-                                          org.slf4j/log4j-over-slf4j {:mvn/version "2.0.17"}
-                                          org.slf4j/jcl-over-slf4j   {:mvn/version "2.0.17"}
-                                          org.slf4j/jul-to-slf4j     {:mvn/version "2.0.17"}}}
+           integrant/integrant                {:mvn/version "0.13.1"}
 
            ;;
-           ;; Louhi development:
+           ;; Malli and Reitit:
            ;;
 
-           :dev             {:extra-paths ["src/build"]
-                             :extra-deps  {org.clojure/clojure {:mvn/version "1.12.2"}
-                                           org.slf4j/slf4j-nop {:mvn/version "2.0.17"}}}
+           metosin/malli                      {:mvn/version "0.20.0"}
+           metosin/reitit-core                {:mvn/version "0.10.0"}
+           metosin/reitit-middleware          {:mvn/version "0.10.0"}
+           metosin/reitit-ring                {:mvn/version "0.10.0"}
+           metosin/reitit-malli               {:mvn/version "0.10.0"}
+           metosin/muuntaja-form              {:mvn/version "0.6.11"}
+
+           ;;
+           ;; Web:
+           ;;
+
+           ring/ring-core                     {:mvn/version "1.15.3"}
+           metosin/ring-http-response         {:mvn/version "0.9.5"}
+           info.sunng/ring-jetty9-adapter     {:mvn/version "0.39.1"}
+           metosin/jsonista                   {:mvn/version "0.3.13"}
+           dev.onionpancakes/chassis          {:mvn/version "1.0.365"}
+           buddy/buddy-sign                   {:mvn/version "3.6.1-359"}
+
+           ;;
+           ;; Postgres:
+           ;;
+
+           com.github.igrishaev/pg2-core      {:mvn/version "0.1.42"}
+           com.github.igrishaev/pg2-honey     {:mvn/version "0.1.42"}
+           com.github.igrishaev/pg2-migration {:mvn/version "0.1.42"}
+
+           ;;
+           ;; Logging:
+           ;;
+
+           org.clojure/tools.logging          {:mvn/version "1.3.1"}
+           org.slf4j/log4j-over-slf4j         {:mvn/version "2.0.17"}
+           org.slf4j/jcl-over-slf4j           {:mvn/version "2.0.17"}
+           org.slf4j/jul-to-slf4j             {:mvn/version "2.0.17"}}
+
+ :aliases {:dev             {:extra-paths ["src/dev" "src/build"]
+                             :extra-deps  {org.clojure/clojure    {:mvn/version "1.12.4"}
+                                           org.slf4j/slf4j-simple {:mvn/version "2.0.17"}}}
 
            :test            {:extra-paths ["src/test"]
                              :extra-deps  {lambdaisland/kaocha        {:mvn/version "1.91.1392"}
                                            nubank/matcher-combinators {:mvn/version "3.9.2"}
                                            ring/ring-mock             {:mvn/version "0.6.2"}
-                                           org.slf4j/slf4j-nop        {:mvn/version "2.0.17"}}}
+                                           org.slf4j/slf4j-simple     {:mvn/version "2.0.17"}}}
 
            :kaocha          {:main-opts ["-m" "kaocha.runner"]}
 
@@ -58,4 +60,5 @@
            ;; Examples:
            ;;
 
-           :examples/simple {:extra-paths ["examples/simple/src"]}}}
+           :examples/simple {:extra-paths ["examples/simple/src"]
+                             :extra-deps  {org.slf4j/slf4j-simple {:mvn/version "2.0.17"}}}}}

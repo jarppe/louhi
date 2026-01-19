@@ -1,7 +1,10 @@
 (ns louhi.dev.watch-service
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [ring.core.protocols :as p])
+            [ring.core.protocols :as p]
+            [louhi.http.status :as status]
+            [integrant.core :as ig]
+            [clojure.tools.logging :as log])
   (:import (java.nio.file Path
                           FileSystems
                           WatchEvent
@@ -14,7 +17,7 @@
 (set! *warn-on-reflection* true)
 
 
-(def ^java.nio.file.WatchEvent$Kind/1 watch-kinds
+(def ^:private ^java.nio.file.WatchEvent$Kind/1 watch-kinds
   (into-array WatchEvent$Kind [StandardWatchEventKinds/ENTRY_CREATE
                                StandardWatchEventKinds/ENTRY_MODIFY
                                StandardWatchEventKinds/ENTRY_DELETE]))
@@ -22,7 +25,7 @@
 
 ;;
 ;; Create new `java.nio.file.WatchService` to monitor file-system changes in
-;; given directory. Calls `on-watch-event` when a change in fs is detected.
+;; given directory. Calls `on-watch-event` when a change in file system is detected.
 ;; Returns a closeable to close the watcher instance and release it's resources.
 ;;
 
@@ -87,23 +90,20 @@
 (defn make-watch-service ^java.io.Closeable [watch-locations]
   (let [listeners      (atom #{})
         on-watch-event (fn [event]
-                         (println "watch-service:" (pr-str event))
                          (doseq [listener @listeners]
-                           (println "watch-service: send...")
-                           (listener event))
-                         (println "watch-service: done"))
+                           (listener event)))
         fs-watchers    (mapv (fn [watch-location]
                                (new-watcher watch-location on-watch-event))
                              watch-locations)]
     (->WatchService fs-watchers listeners)))
 
 
-(defn close-watch-service [^java.io.Closeable watch-service]
+(defn close-watch-service [^WatchService watch-service]
   (when watch-service
     (.close watch-service)))
 
 
-(defn- get-listener [watch-service]
+(defn- create-listener [watch-service]
   (let [events   (java.util.concurrent.LinkedBlockingQueue.)
         listener (fn
                    ([] (.take events))
@@ -131,14 +131,12 @@
 
 (defn- make-events-handler [watch-service]
   (fn [_req]
-    (println "events-handler:"
-             "\ncontent-type:" (-> _req :headers (get "accept") (pr-str)))
     {:status  200
      :headers {"content-type" "text/event-stream"}
      :body    (reify p/StreamableResponseBody
                 (write-body-to-stream [_body _response output-stream]
                   (let [out    (io/writer output-stream)
-                        listen (get-listener watch-service)]
+                        listen (create-listener watch-service)]
                     (try
                       (doseq [{:keys [event data]} (repeatedly listen)]
                         (doto out
@@ -160,31 +158,27 @@
 
 
 (defn- make-dev-watcher-js-handler [uri]
-  (let [replacements {"EVENT_URL" uri}
-        body         (let [baos (java.io.ByteArrayOutputStream.)]
-                       (with-open [in  (-> (io/resource "louhi/dev/dev-watcher.js")
-                                           (io/input-stream))
-                                   out (java.util.zip.GZIPOutputStream. baos)]
-                         (.write out (-> (.readAllBytes in)
-                                         (String. StandardCharsets/UTF_8)
-                                         (str/replace #"\$([^$]+)\$" (comp replacements second))
-                                         (.getBytes StandardCharsets/UTF_8)))
-                         (.flush out))
-                       (.toByteArray baos))
-        etag         (->> body (hash) (abs) (format "\"%08x\""))
-        resp         {:status  200
-                      :headers {"content-type"     "application/javascript; charset=utf-8"
-                                "content-encoding" "gzip"
-                                "cache-control"    "public, no-cache"
-                                "etag"             etag}
-                      :body    body}]
+  (let [body (let [baos (java.io.ByteArrayOutputStream.)]
+               (with-open [in  (-> (io/resource "louhi/dev/dev-watcher.js")
+                                   (io/input-stream))
+                           out (java.util.zip.GZIPOutputStream. baos)]
+                 (.write out (-> (.readAllBytes in)
+                                 (String. StandardCharsets/UTF_8)
+                                 (str/replace "$EVENT_URL$" uri)
+                                 (.getBytes StandardCharsets/UTF_8)))
+                 (.flush out))
+               (.toByteArray baos))
+        etag (->> body (hash) (abs) (format "\"%08x\""))
+        resp {:status  200
+              :headers {"content-type"     "application/javascript; charset=utf-8"
+                        "content-encoding" "gzip"
+                        "cache-control"    "public, no-cache"
+                        "etag"             etag}
+              :body    body}]
     (fn [req]
-      (println "dev-watcher-js-handler:"
-               "\ncontent-type:" (-> req :headers (get "accept") (pr-str))
-               "\nif-none-match:" (-> req :headers (get "if-none-match") (pr-str)) "=>" (-> req :headers (get "if-none-match") (= etag)))
       (if (-> req :headers (get "if-none-match") (= etag))
         (-> resp
-            (assoc :status 304)
+            (assoc :status status/not-modified)
             (dissoc :body))
         resp))))
 
@@ -199,11 +193,27 @@
           (js-handler req))))))
 
 
-(defn wrap-dev-watcher
-  ([handler watch-service] (wrap-dev-watcher handler watch-service nil))
-  ([handler watch-service {:keys [uri]
-                           :or   {uri "/dev/watch"}}]
-   (if watch-service
-     (some-fn (make-dev-watch-handler watch-service uri)
-              handler)
-     handler)))
+;;
+;; WatchService component:
+;;
+
+
+(defmethod ig/init-key ::watch-service [_ {:keys [watch-locations uri]
+                                           :or   {uri "/dev/watch"}}]
+  (let [watch-service (make-watch-service watch-locations)
+        watch-handler (make-dev-watch-handler watch-service uri)]
+    {:watch-service watch-service
+     :watch-handler watch-handler}))
+
+
+(defmethod ig/halt-key! ::watch-servic [_ {:keys [watch-service]}]
+  (when watch-service (close-watch-service watch-service)))
+
+
+;;
+;; WatchService middleware:
+;;
+
+
+(defn watch-service-middleware [handler watch-service]
+  (some-fn (:watch-handler watch-service) handler))

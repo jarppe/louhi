@@ -111,16 +111,16 @@
      "content-type"     (-> content-ext  ext->content-type     (or "application/octet-stream"))}))
 
 
-(comment 
+(comment
   (resource-content-encoding-and-content-type (io/file "foo.js.gz"))
   ;;=> {"content-encoding" "gzip", "content-type" "application/javascript; charset=utf-8"}
-  
+
   (resource-content-encoding-and-content-type (io/file "foo.js"))
   ;;=> {"content-encoding" "identity", "content-type" "application/javascript; charset=utf-8"}
-  
+
   (resource-content-encoding-and-content-type (io/file "foo.gz"))
   ;;=> {"content-encoding" "gzip", "content-type" "application/octet-stream"}
-  
+
   (resource-content-encoding-and-content-type (io/file "foo"))
   ;;=> {"content-encoding" "identity", "content-type" "application/octet-stream"}
   )
@@ -149,7 +149,7 @@
    {:status  200
     :headers (merge (resource-content-encoding-and-content-type resource)
                     {"etag"          (resource-etag resource)
-                     "cache-control" (or cache-control cache/cache-control-public-no-cache)}
+                     "cache-control" (or cache-control "public, no-cache")}
                     (when-let [last-modified (resource-last-modified resource)]
                       {"last-modified" last-modified}))
     :body    resource}))

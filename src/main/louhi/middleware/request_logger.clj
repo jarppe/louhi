@@ -1,7 +1,8 @@
 (ns louhi.middleware.request-logger
   (:require [clojure.string :as str]
             [malli.error :as me]
-            [louhi.http.query :as query])
+            [louhi.http.query :as query]
+            [clojure.tools.logging :as log])
   (:import (java.time Duration)))
 
 
@@ -64,10 +65,10 @@
       (append-ex-info out ex (some? cause)))))
 
 
-(defn wrap-request-logger 
+(defn wrap-request-logger
   ([handler] (wrap-request-logger handler nil))
   ([handler {:keys [output request-headers response-headers headers query explain stacktrace htmx]
-             :or   {output println}}]
+             :or   {output (fn [message] (log/debug message))}}]
    (fn [req]
      (let [start   (System/nanoTime)]
        (when-let [resp (try
@@ -147,5 +148,5 @@
   ;     hx-request: true
   ;     hx-prompt: sure
   ;   response:
-  ;     content-type: text/plain  
+  ;     content-type: text/plain
   )

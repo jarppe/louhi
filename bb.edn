@@ -1,44 +1,40 @@
 {:paths ["bb"]
- :tasks {:requires    ([clojure.string :as str]
-                       [babashka.process :as p])
+ :tasks {:requires       ([clojure.string :as str]
+                          [babashka.process :as p])
 
-         :init        (def aliases [:jetty :httpkit :hirundo :clj-helidon
-                                    :html :jwt :json
-                                    :watch-service
-                                    :logging
-                                    :dev :test])
+         :init           (def aliases [:dev :test])
 
-         dev:outdated {:doc      "Check for outdated Clojure deps"
-                       :requires ([babashka.process :as p])
-                       :task     (clojure "-Sdeps" "{:deps {olical/depot {:mvn/version \"RELEASE\"}}}"
-                                          "-M" "-m" "depot.outdated.main"
-                                          "--aliases" (->> aliases (map name) (str/join ",")))}
+         dev:outdated    {:doc      "Check for outdated Clojure deps"
+                          :requires ([babashka.process :as p])
+                          :task     (clojure "-Sdeps" "{:deps {olical/depot {:mvn/version \"RELEASE\"}}}"
+                                             "-M" "-m" "depot.outdated.main"
+                                             "--aliases" (->> aliases (map name) (str/join ",")))}
 
-         dev:sources  {:doc  "Download dependency sources"
-                       :task (do (p/shell "clj -X:deps mvn-pom :aliases" (pr-str aliases))
-                                 (p/shell "mvn dependency:sources dependency:resolve -Dclassifier=javadoc")
-                                 (p/shell "rm pom.xml"))}
-         
+         dev:sources     {:doc  "Download dependency sources"
+                          :task (do (p/shell "clj -X:deps mvn-pom :aliases" (pr-str aliases))
+                                    (p/shell "mvn dependency:sources dependency:resolve -Dclassifier=javadoc")
+                                    (p/shell "rm pom.xml"))}
+
          release:current {:doc      "Print current release info"
                           :requires ([release])
                           :task     (let [[tag sha] (release/current)]
                                       (println (format "io.github.jarppe/louhi {:git/tag \"%s\"" tag))
                                       (println (format "                        :git/sha \"%s\"}" sha)))}
-         
+
          release:new     {:doc      "Make new release"
                           :requires ([release])
                           :task     (let [[tag sha] (release/new-release *command-line-args*)]
                                       (println (format ":git/tag \"%s\"" tag))
                                       (println (format ":git/sha \"%s\"" sha)))}
 
-         test:unit    {:doc  "Run unit tests"
-                       :task (apply clojure (apply str "-M:dev:test:kaocha" aliases)
-                                    (if (seq *command-line-args*)
-                                      *command-line-args*
-                                      ["unit"]))}
+         test:unit       {:doc  "Run unit tests"
+                          :task (apply clojure (apply str "-M:dev:test:kaocha" aliases)
+                                       (if (seq *command-line-args*)
+                                         *command-line-args*
+                                         ["unit"]))}
 
-         test:watch   {:doc  "Run unit tests in watch mode"
-                       :task (clojure (apply str "-M:dev:test:kaocha" aliases)
-                                      (or (first (seq *command-line-args*)) "unit")
-                                      "--fail-fast"
-                                      "--watch")}}}
+         test:watch      {:doc  "Run unit tests in watch mode"
+                          :task (clojure (apply str "-M:dev:test:kaocha" aliases)
+                                         (or (first (seq *command-line-args*)) "unit")
+                                         "--fail-fast"
+                                         "--watch")}}}

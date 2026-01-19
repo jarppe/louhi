@@ -1,25 +1,28 @@
 (ns louhi.handler.resources
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [louhi.http.cache :as cache]
-            [louhi.handler.resources.resources-util :as util]))
+            [louhi.handler.resources.resources-util :as util]
+            [louhi.http.status :as status]))
 
 
 (set! *warn-on-reflection* true)
 
 
+(def cache-control-public-no-cache   "public, no-cache")
+
+
 ;;
 ;; Directory Repository:
 ;;
-;; Creates a resource repository for given directory. This repository makes a lookup 
+;; Creates a resource repository for given directory. This repository makes a lookup
 ;; to provided directory when a resource is requested. This repository implementation
 ;; is a good fit if the directory contents can vary at runtime.
 ;;
 
 
 (defn directory-resources-repository
-  ([public-directory]            (directory-resources-repository public-directory "/"        cache/cache-control-public-no-cache))
-  ([public-directory uri-prefix] (directory-resources-repository public-directory uri-prefix cache/cache-control-public-no-cache))
+  ([public-directory]            (directory-resources-repository public-directory "/"        cache-control-public-no-cache))
+  ([public-directory uri-prefix] (directory-resources-repository public-directory uri-prefix cache-control-public-no-cache))
   ([public-directory uri-prefix cache-control]
    (let [uri-prefix     (if (str/ends-with? uri-prefix "/")
                           uri-prefix
@@ -44,8 +47,8 @@
 
 
 (defn classpath-resources-repository
-  ([path-prefix]            (classpath-resources-repository path-prefix "/"        cache/cache-control-public-no-cache))
-  ([path-prefix uri-prefix] (classpath-resources-repository path-prefix uri-prefix cache/cache-control-public-no-cache))
+  ([path-prefix]            (classpath-resources-repository path-prefix "/"        cache-control-public-no-cache))
+  ([path-prefix uri-prefix] (classpath-resources-repository path-prefix uri-prefix cache-control-public-no-cache))
   ([path-prefix uri-prefix cache-control]
    (let [path-prefix    (if (str/starts-with? path-prefix "/")
                           (subs path-prefix 1)
@@ -69,7 +72,7 @@
 
 
 (defn resource-map->resources-repository
-  ([uri->resource] (resource-map->resources-repository uri->resource cache/cache-control-public-no-cache))
+  ([uri->resource] (resource-map->resources-repository uri->resource cache-control-public-no-cache))
   ([uri->resource cache-control]
    (reduce (fn [acc [uri resource]]
              (assoc acc uri (util/resource-response resource cache-control)))
@@ -81,15 +84,15 @@
 ;; Static Resources Repository:
 ;;
 ;; Scans the provided direcory ar creation time and creates an in-memory map for
-;; information for available resources. When an resources is requested this repository 
-;; implementation can returns the resource very fast. Use this implementation when the 
+;; information for available resources. When an resources is requested this repository
+;; implementation can returns the resource very fast. Use this implementation when the
 ;; resources don't change at runtime.
 ;;
 
 
 (defn static-resources-repository
-  ([public-directory]            (static-resources-repository public-directory "/"        cache/cache-control-public-no-cache))
-  ([public-directory uri-prefix] (static-resources-repository public-directory uri-prefix cache/cache-control-public-no-cache))
+  ([public-directory]            (static-resources-repository public-directory "/"        cache-control-public-no-cache))
+  ([public-directory uri-prefix] (static-resources-repository public-directory uri-prefix cache-control-public-no-cache))
   ([public-directory uri-prefix cache-control]
    (let [public-directory (io/file public-directory)
          public-path      (.toPath public-directory)
@@ -123,7 +126,7 @@
                 (>= (util/parse-rfc-1123-date-time if-modified-since)
                     (util/parse-rfc-1123-date-time (-> resp :headers (get "last-modified"))))))
         (-> resp
-            (assoc :status 304)
+            (assoc :status status/not-modified)
             (dissoc :body))
         (if (-> req :request-method (= :get))
           resp

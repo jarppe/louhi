@@ -2,7 +2,9 @@
   "See https://xclacksoverhead.org/home/about")
 
 
-(defn wrap-clacks-overhead [handler]
-  (fn [req]
-    (when-let [resp (handler req)]
-      (update resp :headers assoc "x-clacks-overhead" "GNU Terry Pratchett"))))
+(def wrap-clacks-overhead
+  {:name :wrap-clacks-overhead
+   :wrap (fn [handler]
+           (fn [req]
+             (when-let [resp (handler req)]
+               (update resp :headers assoc "x-clacks-overhead" "GNU Terry Pratchett"))))})

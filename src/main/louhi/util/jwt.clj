@@ -1,9 +1,7 @@
 (ns louhi.util.jwt
-  "Louhi JWT support.
-   Requires dependency to Buddy sign:
-     buddy/buddy-sign {:mvn/version \"3.5.351\"}"
+  "Louhi JWT support"
   (:require [buddy.sign.jwt :as jwt]
-            [louhi.http.resp :as resp])
+            [ring.util.http-response :as resp])
   (:import (java.time Instant)))
 
 
@@ -36,12 +34,9 @@
                     (-> data :cause))]
         (case cause
           :exp nil
-          :signature (throw (resp/error! {:ex-message "request contained JWT token with bad signature"
-                                          :status     400}))
+          :signature (throw (resp/bad-request! "request contained JWT token with bad signature"))
           ; All others are 500:
-          (resp/error! {:ex-message "unexpected JWT error"
-                        :status     500
-                        :cause      e}))))))
+          (resp/internal-server-error! "unexpected JWT error"))))))
 
 
 (comment
@@ -68,5 +63,5 @@
   (let [jwt (make-jwt {:foo/bar 42} "tiger" 2)]
     (open-jwt jwt "donkey"))
   ; Execution error (ExceptionInfo) at louhi.util.resp/error! (resp.clj:10).
-  ; request contained JWT token with bad signature 
+  ; request contained JWT token with bad signature
   )

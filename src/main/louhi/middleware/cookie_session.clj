@@ -1,18 +1,13 @@
 (ns louhi.middleware.cookie-session
   "Louhi cookie session middleware.
-   Requires Buddy sign and Ring core:
-     buddy/buddy-sign {:mvn/version \"3.5.351\"}
-     ring/ring-core   {:mvn/version \"1.14.2\"}
-   Apply cookies middleware `ring.middleware.cookies/wrap-cookies` before 
-   this middleware"
+   Apply cookies middleware `ring.middleware.cookies/wrap-cookies` before this middleware"
   (:require [louhi.util.jwt :as jwt]
-            [louhi.http.status :as status]
-            [louhi.http.resp :as resp])
+            [ring.util.http-response :as resp])
   (:import (java.time Duration)))
 
 
 ;; There's no well defined way to remove a cookie. The commonly used and generally
-;; working way to remove cookie is to set the cookie to value with `expires` set 
+;; working way to remove cookie is to set the cookie to value with `expires` set
 ;; to Thu, 01 Jan 1970 00 :00:00 GMT. This is sometimes called "cookie depth charge".
 
 (def ^:private cookie-depth-charge {:value     ""
@@ -53,7 +48,7 @@
     (fn [req]
       (let [session (when-let [cookie-value (-> req :cookies (get cookie-name) :value)]
                       (or (jwt/open-jwt cookie-value jwt-secret)
-                          (resp/error! {:status status/unauthorized})))
+                          (resp/unauthorized!)))
             resp    (handler (if session
                                (assoc req
                                       :louhi.session/session session

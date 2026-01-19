@@ -1,11 +1,9 @@
-(ns louhi.middleware.session 
-  (:require [louhi.http.status :as status]))
+(ns louhi.middleware.session
+  (:require [ring.util.http-response :as resp]))
 
 
 (defn wrap-require-session [handler]
   (fn [req]
     (if (-> req :louhi.session/session (some?))
       (handler req)
-      {:status  status/unauthorized
-       :headers {"content-type" "text/plain; charset=utf-8"}
-       :body    "Session required"})))
+      (resp/unauthorized "Session requitred"))))
