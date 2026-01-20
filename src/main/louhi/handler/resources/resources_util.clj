@@ -1,7 +1,6 @@
 (ns louhi.handler.resources.resources-util
   (:require [clojure.string :as str]
-            [clojure.java.io :as io]
-            [louhi.http.cache :as cache])
+            [clojure.java.io :as io])
   (:import (java.nio.charset StandardCharsets)
            (java.nio.file.attribute FileTime)
            (java.security MessageDigest)

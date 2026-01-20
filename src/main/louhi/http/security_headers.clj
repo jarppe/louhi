@@ -19,11 +19,10 @@
      "cross-origin-opener-policy"   "same-origin"
      "cross-origin-resource-policy" "same-site"
      "cross-origin-embedder-policy" "require-corp"
-     "content-security-policy"      (->> [["default-src"     [self]]
-                                          ["frame-ancestors" [none]]
-                                          ["style-src"       [self unsafe-inline "fonts.googleapis.com"]]
-                                          ["font-src"        ["fonts.gstatic.com"]]
-                                          ["script-src"      [self unsafe-eval]]]
-                                         (map (fn [[k v]] (str k " " (str/join " " v))))
+     "content-security-policy"      (->> [["default-src"     self]
+                                          ["frame-ancestors" none]
+                                          ["style-src"       self unsafe-inline "fonts.googleapis.com"]
+                                          ["font-src"        "fonts.gstatic.com"]
+                                          ["script-src"      self unsafe-eval]]
+                                         (map (fn [v] (str/join " " v)))
                                          (str/join "; "))}))
-

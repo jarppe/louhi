@@ -15,16 +15,14 @@
               (when htmx
                 (fn
                   ([_] (throw (ex-info "wrap-htmx middleware requires options" {})))
-                  ([handler {:keys [to-full-page]}]
-                   (when-not to-full-page
-                     (throw (ex-info "wrap-html-page middleware requires option to-full-page" {})))
-                   (let [partial-page-headers hu/html-headers
-                         full-page-headers    (merge hu/html-headers su/security-headers)]
+                  ([handler {:keys [to-full-page security-headers-override]}]
+                   (let [full-page-headers (merge hu/html-headers su/security-headers security-headers-override)]
                      (fn [req]
                        (when-let [resp (handler req)]
-                         (if (hu/partial-page-request? req)
+                         (if (or (nil? to-full-page)
+                                 (hu/partial-page-request? req))
                            (-> resp
-                               (update :headers merge partial-page-headers))
+                               (update :headers merge hu/html-headers))
                            (-> resp
                                (update :headers merge full-page-headers)
                                (update :body to-full-page))))))))))})

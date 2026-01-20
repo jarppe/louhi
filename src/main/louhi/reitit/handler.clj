@@ -1,6 +1,7 @@
 (ns louhi.reitit.handler
   (:require [clojure.string :as str]
             [clojure.tools.logging :as log]
+            [integrant.core :as ig]
             [ring.util.http-response :as resp]
             [muuntaja.core :as m]
             [muuntaja.format.core]
@@ -134,10 +135,10 @@
   ([additional-middleware] (default-middleware nil additional-middleware))
   ([prefix-middleware additional-middleware]
    (concat prefix-middleware
-           [request-logger/wrap-request-logger
-            clacks-overhead/wrap-clacks-overhead
-            wrap-handle-errors
+           [wrap-handle-errors
+            request-logger/wrap-request-logger
             wrap-handle-exceptions
+            clacks-overhead/wrap-clacks-overhead
             wrap-cache-headers
             lower-case-response-headers-middleware
             query-params-middleware
@@ -154,11 +155,19 @@
 
 (defn handler
   ([routes] (handler routes nil))
-  ([routes {:keys [middleware coercions muuntaja additional-middleware]}]
+  ([routes {:keys [middleware coercions muuntaja additional-middleware default-handler default-handlers]}]
    (-> (ring/router routes {:data {:muuntaja   (or muuntaja (default-muuntaja))
                                    :coercion   (or coercions (default-coercions))
                                    :middleware (or middleware (default-middleware additional-middleware))}})
-       (ring/ring-handler (constantly (resp/not-found "I can't even"))))))
+       (ring/ring-handler (or default-handler
+                              (if default-handlers
+                                (apply some-fn (remove nil? default-handlers))
+                                (constantly (resp/not-found "Not found"))))))))
+
+
+
+(defmethod ig/init-key :louhi/handler [_ {:keys [routes opts]}]
+  (handler routes opts))
 
 
 

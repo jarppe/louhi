@@ -52,11 +52,11 @@
 ;;
 
 
-(defmethod ig/init-key ::server [_ {:keys [handler config]}]
+(defmethod ig/init-key :louhi/server [_ {:keys [handler config]}]
   (create-server handler config))
 
 
-(defmethod ig/halt-key! ::server [_ ^louhi.server.core.Server server]
+(defmethod ig/halt-key! :louhi/server [_ ^louhi.server.core.Server server]
   (when server (.close server)))
 
 
