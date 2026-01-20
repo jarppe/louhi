@@ -1,10 +1,9 @@
 (ns louhi.dev.watch-service
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
-            [ring.core.protocols :as p]
-            [louhi.http.status :as status]
             [integrant.core :as ig]
-            [clojure.tools.logging :as log])
+            [ring.core.protocols :as p]
+            [louhi.http.status :as status])
   (:import (java.nio.file Path
                           FileSystems
                           WatchEvent
@@ -31,7 +30,7 @@
 
 
 (defn- new-watcher [{:keys [root dir uri]} on-watch-event]
-  (let [root   (->> root (io/file) (.toPath))
+  (let [root   (->> (or root ".") (io/file) (.toPath))
         dir    (->> (or dir "") (io/file) (.toPath) (.resolve root))
         uri    (or uri "/")
         watch  (-> (FileSystems/getDefault) (.newWatchService))
@@ -39,9 +38,7 @@
                        (fn []
                          (try
                            (while true
-                             (println "poll events:" (pr-str dir))
                              (when-let [k (.poll watch 10 TimeUnit/SECONDS)]
-                               (println "got events")
                                (try
                                  (doseq [^WatchEvent event (.pollEvents k)]
                                    (on-watch-event {:event :file
@@ -50,10 +47,8 @@
                                                                 (str uri))}))
                                  (finally
                                    (.reset k)))))
-                           (catch java.nio.file.ClosedWatchServiceException _
-                             (println "watch closed"))
-                           (catch InterruptedException _
-                             (println "watch interrupted"))
+                           (catch java.nio.file.ClosedWatchServiceException _)
+                           (catch InterruptedException _)
                            (catch Exception e
                              (.println System/err (format "error: unexpected error on dev file watcher: %s: %s"
                                                           (-> e (.getClass) (.getName))
@@ -67,7 +62,10 @@
           (.interrupt thread)
           (.close watch)
           (catch Throwable e
-            (println "uh no" e)))))))
+            (.println System/err (format "error: unexpected error while closing dev watcher: %s: %s"
+                                         (-> e (.getClass) (.getName))
+                                         (-> e (.getMessage))))
+            (.printStackTrace e System/err)))))))
 
 
 ;;
@@ -129,6 +127,18 @@
 ;;
 
 
+(defn- sse-send [^java.io.Writer out event data]
+  (doto out
+    (.write "event: ")
+    (.write (name event))
+    (.write "\r\n")
+    (.write "data: ")
+    (.write (str (or data "")))
+    (.write "\r\n")
+    (.write "\r\n")
+    (.flush)))
+
+
 (defn- make-events-handler [watch-service]
   (fn [_req]
     {:status  200
@@ -138,16 +148,9 @@
                   (let [out    (io/writer output-stream)
                         listen (create-listener watch-service)]
                     (try
+                      (sse-send out :connected "connected")
                       (doseq [{:keys [event data]} (repeatedly listen)]
-                        (doto out
-                          (.write "event: ")
-                          (.write (name event))
-                          (.write "\r\n")
-                          (.write "data: ")
-                          (.write (str (or data "")))
-                          (.write "\r\n")
-                          (.write "\r\n")
-                          (.flush)))
+                        (sse-send out event data))
                       (finally
                         (remove-listener watch-service listen))))))}))
 
@@ -194,11 +197,11 @@
 
 
 ;;
-;; WatchService component:
+;; WatchService handler as component:
 ;;
 
 
-(defmethod ig/init-key ::watch-service [_ {:keys [watch-locations uri]
+(defmethod ig/init-key ::watch-handler [_ {:keys [watch-locations uri]
                                            :or   {uri "/dev/watch"}}]
   (let [watch-service (make-watch-service watch-locations)
         watch-handler (make-dev-watch-handler watch-service uri)]
@@ -206,14 +209,9 @@
      :watch-handler watch-handler}))
 
 
-(defmethod ig/halt-key! ::watch-servic [_ {:keys [watch-service]}]
+(defmethod ig/halt-key! ::watch-handler [_ {:keys [watch-service]}]
   (when watch-service (close-watch-service watch-service)))
 
 
-;;
-;; WatchService middleware:
-;;
-
-
-(defn watch-service-middleware [handler watch-service]
-  (some-fn (:watch-handler watch-service) handler))
+(defmethod ig/resolve-key ::watch-handler [_ {:keys [watch-handler]}]
+  watch-handler)

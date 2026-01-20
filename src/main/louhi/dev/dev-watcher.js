@@ -27,7 +27,10 @@ const openSource = (listeners) => {
 
 const reconnect = () => {
   openSource({
-    open: () => window.location.reload(),
+    open: () => {
+      console.log("dev-watcher: reconnected, reloading page...")
+      location.replace(location.href)
+    },
     error: (source) => {
       source.close(); // Close source immediatelly to prevent automatic retry done on SSE EventSources.
       setTimeout(reconnect, 500)
@@ -39,7 +42,7 @@ const reconnect = () => {
 // Report connection lost and start the reconnecting process:
 
 const reportErrorAndReconnect = (source) => {
-  console.log("dev-watcher: start reconnecting...")
+  console.log("dev-watcher: disconected, start reconnecting...")
   source.close()
   const message = document.createElement("div")
   message.appendChild(document.createTextNode("Reconnecting..."))
@@ -61,7 +64,6 @@ const reportErrorAndReconnect = (source) => {
 
 const handleFileEvent = (file) => {
   if (file.endsWith(".css")) {
-    console.log("dev-watcher: css reset", file)
     document.querySelectorAll("link[rel=stylesheet]").forEach((link) => {
       const [href] = link.href.split("?")
       if (href.endsWith(file)) {
@@ -73,8 +75,8 @@ const handleFileEvent = (file) => {
 
 // Start the watcher:
 
-console.log("dev-watcher: starting watch...")
 openSource({
+  open:  () => console.log("dev-watcher: connected"),
   ping:  () => {},
   file:  (_, e) => handleFileEvent(e.data),
   close: reportErrorAndReconnect,
