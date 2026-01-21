@@ -7,10 +7,10 @@
 
 
 (deftest jetty-test
-  (with-open [server (server/make-server (constantly {:status 200
-                                                     :body   "hello"})
-                                        nil)]
-    (let [url (str "http://127.0.0.1:" (-> server (meta) :port) "/")]
+  (with-open [server (server/create-server (constantly {:status 200
+                                                        :body   "hello"})
+                                           nil)]
+    (let [url (str "http://127.0.0.1:" (:port server) "/")]
       (is (match? {:status 200
                    :body   (m/via slurp "hello")}
                   @(http/GET url))))))
