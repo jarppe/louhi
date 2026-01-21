@@ -77,7 +77,8 @@
 
 ;; TODO: get more complete list of content types from somewhere
 (def ext->content-type
-  {"html"  "text/html; charset=utf-8"
+  {"txt"   "text/plain; charset=utf-8"
+   "html"  "text/html; charset=utf-8"
    "css"   "text/css; charset=utf-8"
    "js"    "application/javascript; charset=utf-8"
    "json"  "application/json; charset=UTF-8"
