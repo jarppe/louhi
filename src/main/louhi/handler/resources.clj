@@ -19,9 +19,10 @@
 
 (extend-protocol ring.core.protocols/StreamableResponseBody
   java.net.URL
-  (write-body-to-stream [body _response output-stream]
-    (with-open [in (java.net.URL/.openStream body)]
-      (io/copy in output-stream))))
+  (write-body-to-stream [^java.net.URL body _response ^java.io.OutputStream output-stream]
+    (with-open [in (.openStream body)]
+      (io/copy in output-stream)
+      (.flush output-stream))))
 
 
 ;;
