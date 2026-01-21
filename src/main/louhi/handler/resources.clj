@@ -62,8 +62,11 @@
          uri-prefix-len (count uri-prefix)]
      (fn [uri]
        (when (str/starts-with? uri uri-prefix)
-         (when-let [resource (io/resource (str path-prefix (subs uri uri-prefix-len)))]
-           (util/resource-response resource cache-control)))))))
+         (let [resource-name (str path-prefix (subs uri uri-prefix-len))
+               resource      (or (io/resource (str resource-name ".gz"))
+                                 (io/resource resource-name))]
+           (when resource
+             (util/resource-response resource cache-control))))))))
 
 
 ;;
