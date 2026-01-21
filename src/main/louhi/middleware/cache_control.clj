@@ -1,5 +1,4 @@
-(ns louhi.middleware.cache-control
-  (:require [louhi.http.cache :as cache]))
+(ns louhi.middleware.cache-control)
 
 
 (set! *warn-on-reflection* true)
