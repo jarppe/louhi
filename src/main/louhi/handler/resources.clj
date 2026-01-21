@@ -2,13 +2,26 @@
   (:require [clojure.string :as str]
             [clojure.java.io :as io]
             [louhi.handler.resources.resources-util :as util]
-            [louhi.http.status :as status]))
+            [louhi.http.status :as status]
+            [ring.core.protocols]))
 
 
 (set! *warn-on-reflection* true)
 
 
 (def cache-control-public-no-cache "public, no-cache")
+
+
+;;
+;; Add response support for java.net.URL:
+;;
+
+
+(extend-protocol ring.core.protocols/StreamableResponseBody
+  java.net.URL
+  (write-body-to-stream [body _response output-stream]
+    (with-open [in (java.net.URL/.openStream body)]
+      (io/copy in output-stream))))
 
 
 ;;
